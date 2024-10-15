@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Default values
+arch=32
+custom_name=""
+maxprocs=""
+
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+    -arch)
+        arch="$2"
+        shift
+        shift
+        ;;
+    -name)
+        custom_name="$2"
+        shift
+        shift
+        ;;
+    -maxprocs)
+        maxprocs="$2"
+        shift
+        shift
+        ;;
+    *)
+        echo "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+done
+
+# Check if -name option was provided
+if [[ -z "$custom_name" ]]; then
+    echo "Error: -name option is required."
+    exit 1
+fi
+
+# Validate the architecture value
+if [[ "$arch" != "32" && "$arch" != "64" ]]; then
+    echo "Error: Invalid architecture \"$arch\". Allowed values are 32 or 64."
+    exit 1
+fi
+
+# Set environment variables based on architecture
+if [[ "$arch" == "64" ]]; then
+    export GOARCH=amd64
+    DLL_NAME=linux64
+else
+    export GOARCH=386
+    DLL_NAME=linux32
+fi
+
+export GOOS=linux
+export CGO_ENABLED=1
+export GODEBUG=cgocheck=0
+
+# Set GOMAXPROCS if -maxprocs option was provided
+if [[ -n "$maxprocs" ]]; then
+    export GOMAXPROCS="$maxprocs"
+fi
+
+# Ensure the bin directory exists
+if [[ ! -d "bin" ]]; then
+    mkdir bin
+fi
+
+if [[ -n "$GOMAXPROCS" ]]; then
+    echo "Building gmsv_${custom_name}_${DLL_NAME}.dll with GOARCH=${GOARCH} GOMAXPROCS=${GOMAXPROCS}"
+else
+    echo "Building gmsv_${custom_name}_${DLL_NAME}.dll with GOARCH=${GOARCH}"
+fi
+
+# Build the Go program based on architecture and custom name
+go build -buildmode=c-shared -o "bin/gmsv_${custom_name}_${DLL_NAME}.dll" 2>&1
+
+if [[ $? -ne 0 ]]; then
+    echo "Build failed."
+else
+    echo "Build succeeded: gmsv_${custom_name}_${DLL_NAME}.dll"
+fi

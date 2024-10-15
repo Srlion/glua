@@ -1,0 +1,30 @@
+# https://github.com/marketplace/actions/github-tag-bump
+
+name: Bump version
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "**"
+      - "!README.md"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: "0"
+
+      - name: Bump version and push tag
+        id: tag
+        uses: anothrNick/github-tag-action@1.70.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: "patch"
+          RELEASE_BRANCHES: "master,main,dev"
