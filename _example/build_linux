@@ -49,7 +49,7 @@ if [[ "$arch" == "64" ]]; then
     DLL_NAME=linux64
 else
     export GOARCH=386
-    DLL_NAME=linux32
+    DLL_NAME=linux
 fi
 
 export GOOS=linux
