@@ -28,13 +28,11 @@ func gmod13_open(L State) C.int {
 
 //export gmod13_close
 func gmod13_close(L State) C.int {
-	res := 0
-
 	if GMOD13_CLOSE != nil {
-		res = GMOD13_CLOSE(L)
+		return C.int(GMOD13_CLOSE(L))
 	}
 
 	UnloadLuaShared()
 
-	return C.int(res)
+	return 0
 }
