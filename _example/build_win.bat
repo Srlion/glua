@@ -51,11 +51,11 @@ REM Set environment variables based on architecture
 if "!arch!"=="64" (
     set GOARCH=amd64
     set DLL_NAME=win64
-    set PATH=C:\mingw64\bin;%PATH%
+    set PATH=C:\mingw64\bin;!PATH!
 ) else (
     set GOARCH=386
     set DLL_NAME=win32
-    set PATH=C:\mingw32\bin;%PATH%
+    set PATH=C:\mingw32\bin;!PATH!
 )
 
 set GOOS=windows
