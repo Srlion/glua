@@ -1,5 +1,7 @@
 #include "glua.h"
 
+static const char *s_foundLuaSharedPath = NULL;
+
 void *LuaShared(void)
 {
     const char **paths = NULL;
@@ -41,6 +43,7 @@ void *LuaShared(void)
         handle = LOAD_LIBRARY(paths[i]);
         if (handle != NULL)
         {
+            s_foundLuaSharedPath = paths[i];
             return handle; // Successfully loaded
         }
     }
@@ -83,6 +86,11 @@ const char *unload_lua_shared()
     hModule = NULL;
 
     return NULL;
+}
+
+const char *get_lua_shared_path()
+{
+    return s_foundLuaSharedPath;
 }
 
 // https://stackoverflow.com/a/45043324

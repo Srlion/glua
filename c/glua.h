@@ -92,6 +92,7 @@ void goLuaCallback(lua_State L, int *, char **);
 
 extern const char *load_lua_shared(void);
 extern const char *unload_lua_shared(void);
+extern const char *get_lua_shared_path(void);
 
 extern int lua_call_go(lua_State);
 extern int luaCFunctionWrapper(void *, lua_State);

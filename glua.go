@@ -26,6 +26,10 @@ func UnloadLuaShared() {
 	C.unload_lua_shared()
 }
 
+func GetLuaSharedPath() string {
+	return C.GoString(C.get_lua_shared_path())
+}
+
 // Creates a new Lua state.
 //
 // # Example
