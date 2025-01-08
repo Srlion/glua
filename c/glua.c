@@ -1,5 +1,4 @@
 #include "glua.h"
-#include "_cgo_export.h"
 
 static const char *s_foundLuaSharedPath = NULL;
 
