@@ -2,8 +2,6 @@ package glua
 
 /*
 #include <stdint.h>
-extern int gmod13_open(uintptr_t L);
-extern int gmod13_close(uintptr_t L);
 */
 import "C"
 import "fmt"

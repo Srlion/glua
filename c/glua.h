@@ -88,8 +88,6 @@ GLUA_FUNCTIONS
 
 #undef X
 
-extern void goLuaCallback(lua_State L, int *, char **);
-
 extern const char *load_lua_shared(void);
 extern const char *unload_lua_shared(void);
 extern const char *get_lua_shared_path(void);
