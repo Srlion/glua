@@ -1,8 +1,6 @@
 package glua
 
-/*
-#include "c/glua.c"
-*/
+// #include "c/glua.h"
 import "C"
 import (
 	"errors"

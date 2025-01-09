@@ -1,5 +1,4 @@
-#ifndef RESULT_H
-#define RESULT_H
+#pragma once
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -38,5 +37,3 @@ DECLARE_RESULT_TYPE(Double, double, 0)
 DECLARE_RESULT_TYPE(Pointer, void *, NULL)
 DECLARE_RESULT_TYPE(String, const char *, NULL)
 DECLARE_RESULT_TYPE(Bool, bool, false)
-
-#endif // RESULT_H
