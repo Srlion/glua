@@ -1,7 +1,7 @@
 # glua
 
 > [!NOTE]
-> If you are using an editor, you will have lots of errors, this is due to how cgo works. You can ignore these errors, as they will not affect the final build.
+> If you are using an editor, you may have lots of errors, this is due to how cgo works. You can ignore these errors, as they will not affect the final build.
 > You can use `_example/go_build.py` to build your module and it will just work. I asumme you have python installed.
 
 ## Installation
