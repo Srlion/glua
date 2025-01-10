@@ -59,6 +59,12 @@ def main():
         default=DEFAULT_MAXPROCS,
         help="Maximum parallel processes. Default: number of CPU cores"
     )
+    parser.add_argument(
+        "-o", "--outdir",
+        type=str,
+        default="bin",
+        help="Output directory for the built DLL (default: ./bin)"
+    )
 
     args = parser.parse_args()
 
@@ -71,6 +77,9 @@ def main():
     ldflags = args.ldflags
     name = args.name
     maxprocs = args.maxprocs
+    outdir = args.outdir
+    if not os.path.exists(outdir):
+        os.makedirs(outdir, exist_ok=True)
 
     # ----------------------------------------
     # Additional validations (some already handled by argparse choices)
@@ -103,22 +112,22 @@ def main():
     os.environ["GOAMD64"] = "v3"
     os.environ["GOMAXPROCS"] = str(maxprocs)
     os.environ["CGO_CFLAGS"] = f"-Ofast -fvisibility=hidden -flto {cflags}"
-    os.environ["CGO_LDFLAGS"] = f"-Ofast -fvisibility=hidden -flto -s -w {ldflags}"
+    LDFLAGS = f"-s -w -extldflags '-Ofast -fvisibility=hidden -flto {ldflags}'"
 
     path_sep = ';' if os.name == 'nt' else ':'
 
     if arch == 32:
         if os.name == 'nt':
-            os.environ["PATH"] += path_sep + f"C:/mingw32/bin"
+            os.environ["PATH"] = f"C:/mingw32/bin" + path_sep + os.environ["PATH"]
         os.environ["GOARCH"] = "386"
         dll_arch = "win32" if os.name == 'nt' else "linux"
     else:
         if os.name == 'nt':
-            os.environ["PATH"] += path_sep + f"C:/mingw64/bin"
+            os.environ["PATH"] = f"C:/mingw64/bin" + path_sep + os.environ["PATH"]
         os.environ["GOARCH"] = "amd64"
         dll_arch = "win64" if os.name == 'nt' else "linux64"
 
-    dll_name = f"gmsv_{name}_{dll_arch}.dll"
+    dll_name = os.path.join(outdir, f"gmsv_{name}_{dll_arch}.dll")
 
     # ----------------------------------------
     # Display configuration
@@ -128,7 +137,7 @@ def main():
     print("----------------------------------------")
     print(f"Architecture  : {arch}-bit")
     print(f"CFLAGS        : {os.environ['CGO_CFLAGS']}")
-    print(f"LDFLAGS       : {os.environ['CGO_LDFLAGS']}")
+    print(f"LDFLAGS       : {LDFLAGS}")
     print(f"DLL File      : {dll_name}")
     print(f"Max Procs     : {maxprocs}")
     print("========================================")
@@ -141,7 +150,8 @@ def main():
     build_cmd = [
         "go", "build",
         "-buildmode=c-shared",
-        "-o", os.path.join("bin", dll_name)
+        "-o", dll_name,
+        "-ldflags", LDFLAGS,
     ]
 
     print("Running build command:", " ".join(build_cmd))
