@@ -94,7 +94,7 @@ func goLuaCallback(L State, res *C.int, err **C.char) {
 //	L.SetGlobal("test")
 func (L State) PushGoFunc(goFunc GoFunc) {
 	handle := registerGoFunc(goFunc, false)
-	PushInteger(L, handle)
+	L.PushNumber(handle)
 
 	L.PushCClosure(C.lua_call_go, 1)
 }
@@ -112,7 +112,7 @@ func (L State) PushGoFunc(goFunc GoFunc) {
 //	L.SetGlobal("test")
 func (L State) PushOneTimeGoFunc(goFunc GoFunc) {
 	handle := registerGoFunc(goFunc, true)
-	PushInteger(L, handle)
+	L.PushNumber(handle)
 
 	L.PushCClosure(C.lua_call_go, 1)
 }

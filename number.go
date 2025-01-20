@@ -10,39 +10,52 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-const LUA_NUMBER_MAX_SAFE_INTEGER uint64 = 9007199254740991
-const LUA_NUMBER_MIN_SAFE_INTEGER int64 = -9007199254740991
+const LUA_NUMBER_MAX_SAFE_INTEGER int64 = (2 ^ 53) - 1
 
-func (L State) pushNumber(n LUA_NUMBER) {
+func pushNumber(L State, n LUA_NUMBER) {
 	C.lua_pushnumber_wrap(L.c(), C.double(n))
 }
 
-// Methods can't use generics yet
-
-/*
-Pushes an integer onto the stack.
-*/
-func PushInteger[V constraints.Integer](L State, value V) {
-	if value > 0 {
-		if uint64(value) <= LUA_NUMBER_MAX_SAFE_INTEGER {
-			L.pushNumber(LUA_NUMBER(value))
-		} else {
-			L.PushString(strconv.FormatUint(uint64(value), 10))
-		}
-	} else if value < 0 {
-		if int64(value) >= LUA_NUMBER_MIN_SAFE_INTEGER {
-			L.pushNumber(LUA_NUMBER(value))
-		} else {
-			L.PushString(strconv.FormatInt(int64(value), 10))
-		}
+func pushInt[V constraints.Integer](L State, n V) {
+	// max(-n, n) is a quick way to get the absolute value of n, since golang doesn't have a built-in abs function for integers :D
+	if max(-n, n) <= V(LUA_NUMBER_MAX_SAFE_INTEGER) {
+		pushNumber(L, LUA_NUMBER(n))
 	} else {
-		L.pushNumber(0)
+		if n < 0 {
+			L.PushString(strconv.FormatInt(int64(n), 10))
+		} else {
+			L.PushString(strconv.FormatUint(uint64(n), 10))
+		}
 	}
 }
 
-/*
-Pushes a float onto the stack.
-*/
-func PushFloat[V constraints.Float](L State, value V) {
-	L.pushNumber(LUA_NUMBER(value))
+func (L State) PushNumber(n any) {
+	switch v := n.(type) {
+	case int:
+		pushInt(L, v)
+	case int8:
+		pushNumber(L, LUA_NUMBER(v))
+	case int16:
+		pushNumber(L, LUA_NUMBER(v))
+	case int32:
+		pushNumber(L, LUA_NUMBER(v))
+	case int64:
+		pushInt(L, v)
+
+	case uint:
+		pushInt(L, v)
+	case uint8:
+		pushNumber(L, LUA_NUMBER(v))
+	case uint16:
+		pushNumber(L, LUA_NUMBER(v))
+	case uint32:
+		pushNumber(L, LUA_NUMBER(v))
+	case uint64:
+		pushInt(L, v)
+
+	case float32:
+		pushNumber(L, LUA_NUMBER(v))
+	case float64:
+		pushNumber(L, LUA_NUMBER(v))
+	}
 }
