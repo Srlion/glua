@@ -407,6 +407,14 @@ func (L State) GetUserData(idx int, metatable *string) cgo.Handle {
 	return handle
 }
 
+func (L State) GetLightUserData(idx int) unsafe.Pointer {
+	if !L.IsUserData(idx) {
+		panic("expected a light userdata")
+	}
+
+	return C.lua_touserdata_wrap(L.c(), C.int(idx))
+}
+
 /*
 Returns the thread at the given index.
 
