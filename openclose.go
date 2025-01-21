@@ -9,6 +9,8 @@ import "fmt"
 var GMOD13_OPEN func(L State) int
 var GMOD13_CLOSE func(L State) int
 
+var IS_STATE_OPEN = false
+
 //export gmod13_open
 func gmod13_open(L State) C.int {
 	err := LoadLuaShared()
@@ -16,6 +18,8 @@ func gmod13_open(L State) C.int {
 		fmt.Printf("Error loading lua shared: %v\n", *err)
 		return 0
 	}
+
+	IS_STATE_OPEN = true
 
 	if GMOD13_OPEN != nil {
 		return C.int(GMOD13_OPEN(L))
@@ -33,6 +37,8 @@ func gmod13_close(L State) C.int {
 	}
 
 	UnloadLuaShared()
+
+	IS_STATE_OPEN = false
 
 	return res
 }
