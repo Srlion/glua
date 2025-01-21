@@ -303,3 +303,22 @@ const char *lua_check_func(lua_State L, int narg)
 
     return NULL;
 }
+
+const char *lua_get_calling_file_name(lua_State L)
+{
+    lua_Debug ar;
+    if (lua_debug_getinfo_at(L, 1, "S", &ar) == 1)
+    {
+        // Allocate a new string to return
+        char *src = malloc(strlen(ar.short_src) + 1); // +1 for null terminator
+        if (src == NULL)
+        {
+            return NULL;
+        }
+        strcpy(src, ar.short_src);
+        // The caller is responsible for freeing the memory
+        return src;
+    }
+
+    return NULL;
+}

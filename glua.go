@@ -1277,6 +1277,20 @@ func (L State) GetErrorString() *string {
 	return L.GetString(-1)
 }
 
+func (L State) GetCallingFileName() *string {
+	fileNameCStr := C.lua_get_calling_file_name(L.c())
+	if fileNameCStr == nil {
+		return nil
+	}
+
+	fileName := C.GoString(fileNameCStr)
+
+	// free the C string
+	C.free(unsafe.Pointer(fileNameCStr))
+
+	return &fileName
+}
+
 func (L State) GetErrorMessage(errorCode int) string {
 	errorMessage := func(defaultMsg string) string {
 		if err := L.GetErrorString(); err != nil {

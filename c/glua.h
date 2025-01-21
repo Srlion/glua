@@ -106,3 +106,5 @@ extern Result_String lua_check_string(lua_State, int, size_t *);
 extern const char *lua_check_table(lua_State, int); // returns error instead of using Result
 extern const char *lua_check_func(lua_State, int);  // returns error instead of using Result
 extern Result_Bool lua_check_bool(lua_State, int);
+
+extern const char *lua_get_calling_file_name(lua_State);
