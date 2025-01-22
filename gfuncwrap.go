@@ -5,6 +5,7 @@ package glua
 */
 import "C"
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"unsafe"
@@ -13,55 +14,54 @@ import (
 type GoFunc = func(L State) int
 
 var (
-	funcMap   = make(map[uint64]GoFunc)
-	funcMapMu sync.Mutex
-	nextID    uint64 = 0
+	funcMap   map[unsafe.Pointer]GoFunc
+	funcMapMu sync.RWMutex
 )
 
-func registerGoFunc(fn GoFunc, oneTimeUse bool) uint64 {
+func InitGoFuncs(L State) {
+	funcMap = make(map[unsafe.Pointer]GoFunc)
+	funcMapMu = sync.RWMutex{}
+}
+
+func registerGoFunc(fn GoFunc, oneTimeUse bool) unsafe.Pointer {
 	funcMapMu.Lock()
 	defer funcMapMu.Unlock()
 
-	id := nextID
+	funcPtr := unsafe.Pointer(&fn)
+
 	if oneTimeUse {
-		funcMap[id] = func(L State) int {
+		funcMap[funcPtr] = func(L State) int {
 			ret := fn(L)
-			unRegisterGoFunc(id)
+			unRegisterGoFunc(funcPtr)
 			return ret
 		}
 	} else {
-		funcMap[id] = fn
+		funcMap[funcPtr] = fn
 	}
-	nextID++
 
-	return id
+	return funcPtr
 }
 
-func getGoFunc(id uint64) (GoFunc, bool) {
-	funcMapMu.Lock()
-	defer funcMapMu.Unlock()
+func getGoFunc(funcPtr unsafe.Pointer) (GoFunc, bool) {
+	funcMapMu.RLock()
+	defer funcMapMu.RUnlock()
 
-	fn, ok := funcMap[id]
+	fn, ok := funcMap[funcPtr]
 	return fn, ok
 }
 
-func unRegisterGoFunc(id uint64) {
+func unRegisterGoFunc(funcPtr unsafe.Pointer) {
 	funcMapMu.Lock()
 	defer funcMapMu.Unlock()
 
-	delete(funcMap, id)
+	delete(funcMap, funcPtr)
 }
 
-//export goLuaCallback
-func goLuaCallback(L State, res *C.int, err **C.char) {
-	// Get the upvalue, which should be the function handle (id)
-	id := L.GetNumber(lua_upvalueindex(1))
-
+func callGoFunc(L State, funcPtr unsafe.Pointer) (res int, err error) {
 	// Retrieve the Go function using the handle
-	fn, ok := getGoFunc(uint64(id))
+	fn, ok := getGoFunc(funcPtr)
 	if !ok {
-		fmt.Printf("Failed to get Go function with handle %v\n", id)
-		*err = C.CString("Failed to get Go function") // it will be freed by the C side
+		err = errors.New("no go function found")
 		return
 	}
 
@@ -72,12 +72,33 @@ func goLuaCallback(L State, res *C.int, err **C.char) {
 	// we use panics so we don't have to keep checking for err with every single func call, could be costly but idgaf
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Go function panic: %v\n", r)
-			*err = C.CString(fmt.Sprintf("%v", r)) // it will be freed by the C side
+			errMsg := fmt.Sprintf("%v", r)
+			println(errMsg)
+			err = errors.New(errMsg)
 		}
 	}()
 
-	*res = C.int(fn(L))
+	res = fn(L)
+	return
+}
+
+//export goLuaCallback
+func goLuaCallback(L State, cRes *C.int, cErr **C.char) {
+	ptr := L.GetLightUserData(lua_upvalueindex(1))
+	res, err := callGoFunc(L, ptr)
+	if err != nil {
+		*cErr = C.CString(err.Error())
+	} else {
+		*cRes = C.int(res)
+	}
+}
+
+//export goLuaCPCallback
+func goLuaCPCallback(L State, cErr **C.char) {
+	ptr := UnwrapGoPointer(L.GetLightUserData(1))
+	if _, err := callGoFunc(L, ptr); err != nil {
+		*cErr = C.CString(err.Error())
+	}
 }
 
 //	Pushes a Go function to the Lua stack.
@@ -94,8 +115,8 @@ func goLuaCallback(L State, res *C.int, err **C.char) {
 //	L.SetGlobal("test")
 func (L State) PushGoFunc(goFunc GoFunc) {
 	handle := registerGoFunc(goFunc, false)
-	L.PushNumber(handle)
 
+	L.PushLightUserData(handle)
 	L.PushCClosure(C.lua_call_go, 1)
 }
 
@@ -112,8 +133,8 @@ func (L State) PushGoFunc(goFunc GoFunc) {
 //	L.SetGlobal("test")
 func (L State) PushOneTimeGoFunc(goFunc GoFunc) {
 	handle := registerGoFunc(goFunc, true)
-	L.PushNumber(handle)
 
+	L.PushLightUserData(handle)
 	L.PushCClosure(C.lua_call_go, 1)
 }
 

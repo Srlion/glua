@@ -866,8 +866,22 @@ func (L State) TryCall(nargs, nresults int) bool {
 	return true
 }
 
-func (L State) CPCall(funcPtr, ud unsafe.Pointer) int {
-	return int(C.lua_cpcall_wrap(L.c(), funcPtr, ud))
+func (L State) CPCall(funcPtr unsafe.Pointer, ud unsafe.Pointer) error {
+	status := C.lua_cpcall_wrap(L.c(), funcPtr, QuickGoPtr(ud))
+	if status != LUA_OK {
+		return errors.New(L.GetErrorMessage(int(status)))
+	}
+
+	return nil
+}
+
+func (L State) TryCPCall(funcPtr unsafe.Pointer, ud unsafe.Pointer) bool {
+	if err := L.CPCall(funcPtr, ud); err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	return true
 }
 
 // TODO lua_yield

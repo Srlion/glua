@@ -21,6 +21,9 @@ func gmod13_open(L State) C.int {
 
 	IS_STATE_OPEN = true
 
+	InitGoFuncs(L)
+	InitThinkQueue(L)
+
 	if GMOD13_OPEN != nil {
 		return C.int(GMOD13_OPEN(L))
 	}
