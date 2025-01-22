@@ -841,6 +841,31 @@ func (L State) PCall(nargs, nresults, errfunc int) error {
 	return nil
 }
 
+/*
+Calls a function in protected mode.
+
+If there are errors it returns false and prints the error message.
+
+If there are no errors it returns true.
+
+# Example
+
+	err := L.RunString("doesntexist()")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	L.TryCall(0, 0)
+*/
+func (L State) TryCall(nargs, nresults int) bool {
+	if err := L.PCall(nargs, nresults, 0); err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	return true
+}
+
 func (L State) CPCall(funcPtr, ud unsafe.Pointer) int {
 	return int(C.lua_cpcall_wrap(L.c(), funcPtr, ud))
 }
