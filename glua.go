@@ -841,7 +841,9 @@ func (L State) PCall(nargs, nresults, errfunc int) error {
 	return nil
 }
 
-// TODO lua_cpcall
+func (L State) CPCall(funcPtr, ud unsafe.Pointer) int {
+	return int(C.lua_cpcall_wrap(L.c(), funcPtr, ud))
+}
 
 // TODO lua_yield
 // TODO lua_resume
