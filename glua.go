@@ -5,6 +5,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"runtime/cgo"
 	"strconv"
 	"unsafe"
@@ -1337,7 +1338,7 @@ func (L State) GetCallingFileName() string {
 	// free the C string
 	C.free(unsafe.Pointer(fileNameCStr))
 
-	return fileName
+	return filepath.ToSlash(fileName)
 }
 
 func (L State) ErrorNoHalt(err string) {
