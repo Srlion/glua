@@ -24,6 +24,7 @@ func gmod13_open(L State) C.int {
 
 	IS_STATE_OPEN.Store(true)
 
+	InitGoTasks(L)
 	InitGoPtrRegistry(L)
 	InitGoFuncRegistry(L)
 	InitThinkQueue(L)
@@ -38,6 +39,8 @@ func gmod13_open(L State) C.int {
 //export gmod13_close
 func gmod13_close(L State) C.int {
 	var res C.int = 0
+
+	WaitGoTasks()
 
 	if GMOD13_CLOSE != nil {
 		res = C.int(GMOD13_CLOSE(L))
