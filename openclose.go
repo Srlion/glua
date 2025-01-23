@@ -4,12 +4,15 @@ package glua
 #include <stdint.h>
 */
 import "C"
-import "fmt"
+import (
+	"fmt"
+	"sync/atomic"
+)
 
 var GMOD13_OPEN func(L State) int
 var GMOD13_CLOSE func(L State) int
 
-var IS_STATE_OPEN = false
+var IS_STATE_OPEN = atomic.Bool{}
 
 //export gmod13_open
 func gmod13_open(L State) C.int {
@@ -19,9 +22,10 @@ func gmod13_open(L State) C.int {
 		return 0
 	}
 
-	IS_STATE_OPEN = true
+	IS_STATE_OPEN.Store(true)
 
-	InitGoFuncs(L)
+	InitGoPtrRegistry(L)
+	InitGoFuncRegistry(L)
 	InitThinkQueue(L)
 
 	if GMOD13_OPEN != nil {
@@ -39,9 +43,9 @@ func gmod13_close(L State) C.int {
 		res = C.int(GMOD13_CLOSE(L))
 	}
 
-	UnloadLuaShared()
+	IS_STATE_OPEN.Store(false)
 
-	IS_STATE_OPEN = false
+	UnloadLuaShared()
 
 	return res
 }

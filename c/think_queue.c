@@ -1,5 +1,4 @@
 #pragma once
-#include <stdatomic.h>
 #include <stdio.h>
 #include "think_queue.h"
 #include "glua.h"

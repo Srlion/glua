@@ -192,23 +192,6 @@ int lua_call_go(lua_State L)
     return result;
 }
 
-int lua_cpcall_go(lua_State L)
-{
-    char *err = NULL;
-
-    goLuaCPCallback(L, &err);
-
-    if (err != NULL)
-    {
-        lua_pushstring_wrap(L, err);
-        free(err);
-        lua_error_wrap(L);
-        return 0; // unreachable
-    }
-
-    return LUA_OK;
-}
-
 int luaCFunctionWrapper(void *f, lua_State L)
 {
     return ((int (*)(lua_State))(f))(L);

@@ -407,12 +407,12 @@ func (L State) GetUserData(idx int, metatable *string) cgo.Handle {
 	return handle
 }
 
-func (L State) GetLightUserData(idx int) unsafe.Pointer {
+func (L State) GetLightUserData(idx int) uintptr {
 	if !L.IsUserData(idx) {
 		panic("expected a light userdata")
 	}
 
-	return C.lua_touserdata_wrap(L.c(), C.int(idx))
+	return uintptr(C.lua_touserdata_wrap(L.c(), C.int(idx)))
 }
 
 /*
@@ -490,8 +490,8 @@ Pushes a light userdata onto the stack.
 
 Light userdata is a pointer that is not managed by Lua.
 */
-func (L State) PushLightUserData(p unsafe.Pointer) {
-	C.lua_pushlightuserdata_wrap(L.c(), p)
+func (L State) PushLightUserData(p uintptr) {
+	C.lua_pushlightuserdata_wrap(L.c(), unsafe.Pointer(p))
 }
 
 /*
@@ -866,8 +866,8 @@ func (L State) TryCall(nargs, nresults int) bool {
 	return true
 }
 
-func (L State) CPCall(funcPtr unsafe.Pointer, ud unsafe.Pointer) error {
-	status := C.lua_cpcall_wrap(L.c(), funcPtr, QuickGoPtr(ud))
+func (L State) CPCall(funcPtr unsafe.Pointer, ud uintptr) error {
+	status := C.lua_cpcall_wrap(L.c(), funcPtr, unsafe.Pointer(ud))
 	if status != LUA_OK {
 		return errors.New(L.GetErrorMessage(int(status)))
 	}
@@ -875,7 +875,7 @@ func (L State) CPCall(funcPtr unsafe.Pointer, ud unsafe.Pointer) error {
 	return nil
 }
 
-func (L State) TryCPCall(funcPtr unsafe.Pointer, ud unsafe.Pointer) bool {
+func (L State) TryCPCall(funcPtr unsafe.Pointer, ud uintptr) bool {
 	if err := L.CPCall(funcPtr, ud); err != nil {
 		fmt.Println(err)
 		return false
@@ -1338,6 +1338,19 @@ func (L State) GetCallingFileName() string {
 	C.free(unsafe.Pointer(fileNameCStr))
 
 	return fileName
+}
+
+func (L State) ErrorNoHalt(err string) {
+	L.GetGlobal("ErrorNoHaltWithStack")
+	if L.IsNil(-1) { // wtf this doesn't exist?
+		L.Pop() // pop the nil value
+		fmt.Println("[ERROR] " + err)
+	} else {
+		L.PushString(err)
+		if err := L.PCall(1, 0, 0); err != nil { // wtf this fails?
+			fmt.Println("[ERROR] " + err.Error())
+		}
+	}
 }
 
 func (L State) GetErrorMessage(errorCode int) string {

@@ -1,5 +1,4 @@
 #pragma once
-#include <stdatomic.h>
 #include <stdio.h>
 
 extern void taskQueueThink(uintptr_t L);

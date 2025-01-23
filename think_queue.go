@@ -10,16 +10,15 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"unsafe"
 )
 
 // The usage for C as a Think callback is because CGO is slow, so we need to only call it ONLY when we need to.
 
-var thinkQueue chan unsafe.Pointer
+var thinkQueue chan GoFunc
 var thinkQueueCountMu sync.Mutex
 
 func InitThinkQueue(L State) {
-	thinkQueue = make(chan unsafe.Pointer, 100) // We need to use a buffered channel to make use of queueing
+	thinkQueue = make(chan GoFunc, 100) // We need to use a buffered channel to make use of queueing
 	thinkQueueCountMu = sync.Mutex{}
 	C.reset_tasks_count()
 
@@ -45,7 +44,11 @@ loop:
 	for {
 		select {
 		case task := <-thinkQueue:
-			L.TryCPCall(C.lua_cpcall_go, task)
+			L.SetTop(0)                   // completely empty the lua stack
+			_, err := callGoFunc(L, task) // we use callGoFunc to safely handle panics
+			if err != nil {
+				L.ErrorNoHalt(err.Error())
+			}
 			count++
 		default:
 			// No more tasks to process
@@ -64,11 +67,11 @@ loop:
 }
 
 func WaitLuaThink(fn GoFunc) {
-	if !IS_STATE_OPEN {
+	if IS_STATE_OPEN.Load() == false {
 		return
 	}
 
-	thinkQueue <- registerGoFunc(fn, true)
+	thinkQueue <- fn // Queue the task
 
 	thinkQueueCountMu.Lock()
 	{

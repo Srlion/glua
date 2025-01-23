@@ -7,64 +7,33 @@ import "C"
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"unsafe"
+
+	"github.com/Srlion/safereg"
 )
 
 type GoFunc = func(L State) int
 
-var (
-	funcMap   map[unsafe.Pointer]GoFunc
-	funcMapMu sync.RWMutex
-)
+var FuncRegistry *safereg.Registry
 
-func InitGoFuncs(L State) {
-	funcMap = make(map[unsafe.Pointer]GoFunc)
-	funcMapMu = sync.RWMutex{}
+func InitGoFuncRegistry(L State) {
+	FuncRegistry = safereg.New()
 }
 
-func registerGoFunc(fn GoFunc, oneTimeUse bool) unsafe.Pointer {
-	funcMapMu.Lock()
-	defer funcMapMu.Unlock()
-
-	funcPtr := unsafe.Pointer(&fn)
-
+func registerGoFunc(fn GoFunc, oneTimeUse bool) uintptr {
+	var handle uintptr
 	if oneTimeUse {
-		funcMap[funcPtr] = func(L State) int {
-			ret := fn(L)
-			unRegisterGoFunc(funcPtr)
-			return ret
-		}
+		handle = FuncRegistry.Store(func(L State) int {
+			FuncRegistry.Release(handle)
+			return fn(L)
+		})
 	} else {
-		funcMap[funcPtr] = fn
+		handle = FuncRegistry.Store(fn)
 	}
-
-	return funcPtr
+	return handle
 }
 
-func getGoFunc(funcPtr unsafe.Pointer) (GoFunc, bool) {
-	funcMapMu.RLock()
-	defer funcMapMu.RUnlock()
-
-	fn, ok := funcMap[funcPtr]
-	return fn, ok
-}
-
-func unRegisterGoFunc(funcPtr unsafe.Pointer) {
-	funcMapMu.Lock()
-	defer funcMapMu.Unlock()
-
-	delete(funcMap, funcPtr)
-}
-
-func callGoFunc(L State, funcPtr unsafe.Pointer) (res int, err error) {
-	// Retrieve the Go function using the handle
-	fn, ok := getGoFunc(funcPtr)
-	if !ok {
-		err = errors.New("no go function found")
-		return
-	}
-
+func callGoFunc(L State, fn GoFunc) (res int, err error) {
 	// allow panics to return to Lua with no issues, by making the C wrapper for check w/e u return to
 	// detect if its an error or not to cause a lua error, we want that to happen from C side so we make sure go side is safe
 	// im not sure if calling lua_error from go side will cause issues with the go runtime, so we just let the C side handle it
@@ -72,9 +41,7 @@ func callGoFunc(L State, funcPtr unsafe.Pointer) (res int, err error) {
 	// we use panics so we don't have to keep checking for err with every single func call, could be costly but idgaf
 	defer func() {
 		if r := recover(); r != nil {
-			errMsg := fmt.Sprintf("%v", r)
-			println(errMsg)
-			err = errors.New(errMsg)
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 
@@ -84,20 +51,24 @@ func callGoFunc(L State, funcPtr unsafe.Pointer) (res int, err error) {
 
 //export goLuaCallback
 func goLuaCallback(L State, cRes *C.int, cErr **C.char) {
-	ptr := L.GetLightUserData(lua_upvalueindex(1))
-	res, err := callGoFunc(L, ptr)
+	var res int
+	var err error
+
+	// Get the function handle from the upvalue
+	funcHandle := L.GetLightUserData(lua_upvalueindex(1))
+	fn, exists := FuncRegistry.Get(funcHandle)
+	if !exists {
+		err = errors.New("attempt to call a nil value")
+		goto handleRet
+	}
+
+	res, err = callGoFunc(L, fn.(GoFunc))
+
+handleRet:
 	if err != nil {
 		*cErr = C.CString(err.Error())
 	} else {
 		*cRes = C.int(res)
-	}
-}
-
-//export goLuaCPCallback
-func goLuaCPCallback(L State, cErr **C.char) {
-	ptr := UnwrapGoPointer(L.GetLightUserData(1))
-	if _, err := callGoFunc(L, ptr); err != nil {
-		*cErr = C.CString(err.Error())
 	}
 }
 
@@ -115,7 +86,6 @@ func goLuaCPCallback(L State, cErr **C.char) {
 //	L.SetGlobal("test")
 func (L State) PushGoFunc(goFunc GoFunc) {
 	handle := registerGoFunc(goFunc, false)
-
 	L.PushLightUserData(handle)
 	L.PushCClosure(C.lua_call_go, 1)
 }
@@ -133,7 +103,6 @@ func (L State) PushGoFunc(goFunc GoFunc) {
 //	L.SetGlobal("test")
 func (L State) PushOneTimeGoFunc(goFunc GoFunc) {
 	handle := registerGoFunc(goFunc, true)
-
 	L.PushLightUserData(handle)
 	L.PushCClosure(C.lua_call_go, 1)
 }
