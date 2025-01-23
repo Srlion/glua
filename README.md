@@ -1,5 +1,10 @@
 # glua
 
+> [!WARNING]
+> go doesn't support dlclose, so you need to reset the state every time the module is opened
+> https://github.com/golang/go/issues/11100#issuecomment-931729237
+> this means that all global variables will not reset, so you need to reset them manually on gmod13_open
+
 > [!NOTE]
 > If you are using an editor, you may have lots of errors, this is due to how cgo works. You can ignore these errors, as they will not affect the final build.
 > You can use `_example/go_build.py` to build your module and it will just work. I asumme you have python installed.
