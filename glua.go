@@ -1043,7 +1043,7 @@ Returns LUA_OK if successful, otherwise an error code.
 
 	L.Call(0, 0)
 */
-func (L State) CompileBuffer(code []byte, size uint, name string) int {
+func (L State) CompileBuffer(code []byte, name string) int {
 	cName, cBuf := CStr(name), CByt(code)
 	defer cName.free()
 	defer cBuf.Free()
