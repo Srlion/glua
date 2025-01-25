@@ -1036,7 +1036,7 @@ Returns LUA_OK if successful, otherwise an error code.
 
 	buf := []byte("print('Hello, world!')")
 
-	err := L.CompileBuffer(buf, 16, "example.lua")
+	err := L.CompileBuffer(buf, "example.lua")
 	if err != nil {
 		fmt.Println(err)
 	}
