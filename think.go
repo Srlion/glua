@@ -16,17 +16,15 @@ import (
 // The usage for C as a Think callback is because CGO is slow, so we need to only call it ONLY when we need to.
 
 var (
-	thinkQueue   chan GoFunc
-	thinkQueueMu sync.Mutex
-
+	thinkQueue []GoFunc
 	thinkFuncs []GoFunc
+	thinkMu    sync.Mutex
 )
 
 func InitThinkQueue(L State) {
-	thinkQueue = make(chan GoFunc, 100) // We need to use a buffered channel to make use of queueing
-	thinkQueueMu = sync.Mutex{}
-
-	thinkFuncs = make([]GoFunc, 0)
+	thinkQueue = []GoFunc{}
+	thinkFuncs = []GoFunc{}
+	thinkMu = sync.Mutex{}
 
 	C.reset_tasks_count()
 
@@ -47,8 +45,8 @@ func InitThinkQueue(L State) {
 
 //export thinkQueueProcess
 func thinkQueueProcess(L State) {
-	thinkQueueMu.Lock()
-	defer thinkQueueMu.Unlock()
+	thinkMu.Lock()
+	defer thinkMu.Unlock()
 
 	count := 0
 
@@ -66,21 +64,16 @@ func thinkQueueProcess(L State) {
 		return false
 	})
 
-loop:
-	for {
-		select {
-		case task := <-thinkQueue:
-			L.SetTop(0)                   // completely empty the lua stack
-			_, err := callGoFunc(L, task) // we use callGoFunc to safely handle panics
-			if err != nil {
-				L.ErrorNoHalt(err.Error())
-			}
-			count++
-		default:
-			// No more tasks to process
-			break loop
+	for _, fn := range thinkQueue {
+		L.SetTop(0)                 // completely empty the lua stack
+		_, err := callGoFunc(L, fn) // we use callGoFunc to safely handle panics
+		if err != nil {
+			L.ErrorNoHalt(err.Error())
 		}
+		count++
 	}
+
+	thinkQueue = []GoFunc{} // Clear the think queue
 
 	C.decrement_tasks_count_by(C.int(count))
 }
@@ -90,13 +83,12 @@ func WaitLuaThink(fn GoFunc) {
 		return
 	}
 
-	thinkQueue <- fn // Queue the task
-
-	thinkQueueMu.Lock()
+	thinkMu.Lock()
 	{
+		thinkQueue = append(thinkQueue, fn) // Add the function to the think queue
 		C.increment_tasks_count()
 	}
-	thinkQueueMu.Unlock()
+	thinkMu.Unlock()
 }
 
 // LuaThink is a function that will be called every frame
@@ -107,12 +99,12 @@ func LuaThink(fn GoFunc) {
 		return
 	}
 
-	thinkQueueMu.Lock()
+	thinkMu.Lock()
 	{
 		thinkFuncs = append(thinkFuncs, fn) // Add the function to the think functions
 		C.increment_tasks_count()
 	}
-	thinkQueueMu.Unlock()
+	thinkMu.Unlock()
 }
 
 func (L State) PollThinkQueue() {
