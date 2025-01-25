@@ -78,8 +78,6 @@ def main():
     name = args.name
     maxprocs = args.maxprocs
     outdir = args.outdir
-    if not os.path.exists(outdir):
-        os.makedirs(outdir, exist_ok=True)
 
     # ----------------------------------------
     # Additional validations (some already handled by argparse choices)
@@ -104,6 +102,9 @@ def main():
         print(f"Error: Failed to change directory to '{directory}': {e}")
         sys.exit(1)
 
+    if not os.path.exists(outdir):
+        os.makedirs(outdir, exist_ok=True)
+
     # ----------------------------------------
     # Set environment variables
     # ----------------------------------------
@@ -111,8 +112,8 @@ def main():
     os.environ["CGO_ENABLED"] = "1"
     os.environ["GOAMD64"] = "v3"
     os.environ["GOMAXPROCS"] = str(maxprocs)
-    os.environ["CGO_CFLAGS"] = f"-Ofast -fvisibility=hidden -flto {cflags}"
-    LDFLAGS = f"-s -w -extldflags '-Ofast -fvisibility=hidden -flto {ldflags}'"
+    os.environ["CGO_CFLAGS"] = f"-O3 -fvisibility=hidden -flto {cflags}"
+    LDFLAGS = f"-s -w -extldflags '-O3 -fvisibility=hidden -flto {ldflags}'"
 
     path_sep = ';' if os.name == 'nt' else ':'
 
