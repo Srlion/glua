@@ -7,6 +7,7 @@ package glua
 import "C"
 import (
 	"math/rand"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -14,12 +15,19 @@ import (
 
 // The usage for C as a Think callback is because CGO is slow, so we need to only call it ONLY when we need to.
 
-var thinkQueue chan GoFunc
-var thinkQueueCountMu sync.Mutex
+var (
+	thinkQueue   chan GoFunc
+	thinkQueueMu sync.Mutex
+
+	thinkFuncs []GoFunc
+)
 
 func InitThinkQueue(L State) {
 	thinkQueue = make(chan GoFunc, 100) // We need to use a buffered channel to make use of queueing
-	thinkQueueCountMu = sync.Mutex{}
+	thinkQueueMu = sync.Mutex{}
+
+	thinkFuncs = make([]GoFunc, 0)
+
 	C.reset_tasks_count()
 
 	L.GetGlobal("timer")
@@ -39,7 +47,25 @@ func InitThinkQueue(L State) {
 
 //export thinkQueueProcess
 func thinkQueueProcess(L State) {
+	thinkQueueMu.Lock()
+	defer thinkQueueMu.Unlock()
+
 	count := 0
+
+	// process think functions
+	thinkFuncs = slices.DeleteFunc(thinkFuncs, func(fn GoFunc) bool {
+		L.SetTop(0)                   // completely empty the lua stack
+		res, err := callGoFunc(L, fn) // we use callGoFunc to safely handle panics
+		if err != nil {
+			L.ErrorNoHalt(err.Error())
+		}
+		if res == 1 {
+			count++
+			return true // Remove the function from the think functions
+		}
+		return false
+	})
+
 loop:
 	for {
 		select {
@@ -56,14 +82,7 @@ loop:
 		}
 	}
 
-	// Decrement the task count by the number of tasks processed
-	if count > 0 { // Only lock if there are tasks to decrement
-		thinkQueueCountMu.Lock()
-		{
-			C.decrement_tasks_count_by(C.int(count))
-		}
-		thinkQueueCountMu.Unlock()
-	}
+	C.decrement_tasks_count_by(C.int(count))
 }
 
 func WaitLuaThink(fn GoFunc) {
@@ -73,11 +92,27 @@ func WaitLuaThink(fn GoFunc) {
 
 	thinkQueue <- fn // Queue the task
 
-	thinkQueueCountMu.Lock()
+	thinkQueueMu.Lock()
 	{
 		C.increment_tasks_count()
 	}
-	thinkQueueCountMu.Unlock()
+	thinkQueueMu.Unlock()
+}
+
+// LuaThink is a function that will be called every frame
+// This function is thread-safe
+// Return 1 to stop calling the function
+func LuaThink(fn GoFunc) {
+	if IS_STATE_OPEN.Load() == false {
+		return
+	}
+
+	thinkQueueMu.Lock()
+	{
+		thinkFuncs = append(thinkFuncs, fn) // Add the function to the think functions
+		C.increment_tasks_count()
+	}
+	thinkQueueMu.Unlock()
 }
 
 func (L State) PollThinkQueue() {
