@@ -1043,17 +1043,17 @@ Returns LUA_OK if successful, otherwise an error code.
 
 	L.Call(0, 0)
 */
-func (L State) CompileBuffer(code []byte, name string) int {
+func (L State) CompileBuffer(code []byte, name string) error {
 	cName, cBuf := CStr(name), CByt(code)
 	defer cName.free()
 	defer cBuf.Free()
 
-	lua_error_code := C.luaL_loadbuffer_wrap(L.c(), cBuf.c, cBuf.size, cName.c)
-	if lua_error_code != LUA_OK {
-		return int(lua_error_code)
+	status := C.luaL_loadbuffer_wrap(L.c(), cBuf.c, cBuf.size, cName.c)
+	if status != LUA_OK {
+		return errors.New(L.GetErrorMessage(int(status)))
 	}
 
-	return LUA_OK
+	return nil
 }
 
 /*
