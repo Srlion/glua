@@ -7,7 +7,6 @@ package glua
 import "C"
 import (
 	"math/rand"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -16,15 +15,15 @@ import (
 // The usage for C as a Think callback is because CGO is slow, so we need to only call it ONLY when we need to.
 
 var (
-	thinkQueue []GoFunc
-	thinkFuncs []GoFunc
-	thinkMu    sync.Mutex
+	thinkQueue   chan GoFunc
+	thinkFuncs   []GoFunc
+	thinkFuncsMu sync.Mutex
 )
 
 func InitThinkQueue(L State) {
-	thinkQueue = []GoFunc{}
-	thinkFuncs = []GoFunc{}
-	thinkMu = sync.Mutex{}
+	thinkQueue = make(chan GoFunc, 100) // Make a buffered channel for the think queue
+	thinkFuncs = make([]GoFunc, 0)      // Make a slice for the think functions
+	thinkFuncsMu = sync.Mutex{}
 
 	C.reset_tasks_count()
 
@@ -45,13 +44,14 @@ func InitThinkQueue(L State) {
 
 //export thinkQueueProcess
 func thinkQueueProcess(L State) {
-	thinkMu.Lock()
-	defer thinkMu.Unlock()
-
 	count := 0
 
-	// process think functions
-	thinkFuncs = slices.DeleteFunc(thinkFuncs, func(fn GoFunc) bool {
+	thinkFuncsMu.Lock()
+	snapshot := thinkFuncs[:len(thinkFuncs):len(thinkFuncs)]
+	thinkFuncsMu.Unlock()
+
+	toRemove := map[int]struct{}{}
+	for i, fn := range snapshot {
 		L.SetTop(0)                   // completely empty the lua stack
 		res, err := callGoFunc(L, fn) // we use callGoFunc to safely handle panics
 		if err != nil {
@@ -59,21 +59,37 @@ func thinkQueueProcess(L State) {
 		}
 		if res == 1 {
 			count++
-			return true // Remove the function from the think functions
+			toRemove[i] = struct{}{}
 		}
-		return false
-	})
-
-	for _, fn := range thinkQueue {
-		L.SetTop(0)                 // completely empty the lua stack
-		_, err := callGoFunc(L, fn) // we use callGoFunc to safely handle panics
-		if err != nil {
-			L.ErrorNoHalt(err.Error())
-		}
-		count++
 	}
 
-	thinkQueue = []GoFunc{} // Clear the think queue
+	if len(toRemove) > 0 {
+		thinkFuncsMu.Lock()
+		newThinkFuncs := make([]GoFunc, 0, len(thinkFuncs)-len(toRemove))
+		for i, fn := range thinkFuncs {
+			if _, ok := toRemove[i]; !ok {
+				newThinkFuncs = append(newThinkFuncs, fn)
+			}
+		}
+		thinkFuncs = newThinkFuncs
+		thinkFuncsMu.Unlock()
+	}
+
+loop:
+	for i := 0; i < 3; i++ { // Process 3 tasks per frame to prevent lag spikes
+		select {
+		case task := <-thinkQueue:
+			L.SetTop(0)                   // completely empty the lua stack
+			_, err := callGoFunc(L, task) // we use callGoFunc to safely handle panics
+			if err != nil {
+				L.ErrorNoHalt(err.Error())
+			}
+			count++
+		default:
+			// No more tasks to process
+			break loop
+		}
+	}
 
 	C.decrement_tasks_count_by(C.int(count))
 }
@@ -83,12 +99,9 @@ func WaitLuaThink(fn GoFunc) {
 		return
 	}
 
-	thinkMu.Lock()
-	{
-		thinkQueue = append(thinkQueue, fn) // Add the function to the think queue
-		C.increment_tasks_count()
-	}
-	thinkMu.Unlock()
+	thinkQueue <- fn
+
+	C.increment_tasks_count() // concurrent increment
 }
 
 // LuaThink is a function that will be called every frame
@@ -99,12 +112,13 @@ func LuaThink(fn GoFunc) {
 		return
 	}
 
-	thinkMu.Lock()
+	thinkFuncsMu.Lock()
 	{
 		thinkFuncs = append(thinkFuncs, fn) // Add the function to the think functions
-		C.increment_tasks_count()
 	}
-	thinkMu.Unlock()
+	thinkFuncsMu.Unlock()
+
+	C.increment_tasks_count() // concurrent increment
 }
 
 func (L State) PollThinkQueue() {
