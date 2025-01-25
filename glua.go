@@ -860,7 +860,7 @@ If there are no errors it returns true.
 */
 func (L State) TryCall(nargs, nresults int) bool {
 	if err := L.PCall(nargs, nresults, 0); err != nil {
-		fmt.Println(err)
+		L.ErrorNoHalt(err.Error())
 		return false
 	}
 
@@ -878,7 +878,7 @@ func (L State) CPCall(funcPtr unsafe.Pointer, ud uintptr) error {
 
 func (L State) TryCPCall(funcPtr unsafe.Pointer, ud uintptr) bool {
 	if err := L.CPCall(funcPtr, ud); err != nil {
-		fmt.Println(err)
+		L.ErrorNoHalt(err.Error())
 		return false
 	}
 
