@@ -1,5 +1,3 @@
-github.com/Srlion/safereg v0.0.0-20250123195901-ee5213a08f2e h1:4miGrJS4/kRXzorD5B1fsu+PWXdwj7H8grqp31K/LPM=
-github.com/Srlion/safereg v0.0.0-20250123195901-ee5213a08f2e/go.mod h1:qPFgON4MYNLSfR/bgBXJYGyIUJ5lFLJkyB9Hn9r/c0Q=
 github.com/Srlion/safereg v0.0.0-20250123202343-2c2b3bd18282 h1:kgiuDgi2/zjtkeevju0Pt12JYX4tn3NZx9+/Q2HRyq4=
 github.com/Srlion/safereg v0.0.0-20250123202343-2c2b3bd18282/go.mod h1:qPFgON4MYNLSfR/bgBXJYGyIUJ5lFLJkyB9Hn9r/c0Q=
 golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c h1:7dEasQXItcW1xKJ2+gg5VOiBnqWrJc+rq0DPKyvvdbY=
