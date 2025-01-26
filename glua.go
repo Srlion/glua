@@ -315,19 +315,19 @@ Returns the string at the given index in the Lua stack.
 		fmt.Println(*str)
 	}
 */
-func (L State) GetString(idx int) *string {
+func (L State) GetString(idx int) string {
 	if !L.IsString(idx) {
-		return nil
+		return ""
 	}
 
 	size := C.size_t(0)
 	str := C.lua_tolstring_wrap(L.c(), C.int(idx), &size)
 	if str == nil {
-		return nil
+		return ""
 	}
 
 	result := goStringN(str, size)
-	return &result
+	return result
 }
 
 /*
@@ -1323,7 +1323,7 @@ func (L State) RunString(str string) error {
 	return nil
 }
 
-func (L State) GetErrorString() *string {
+func (L State) GetErrorString() string {
 	return L.GetString(-1)
 }
 
@@ -1356,8 +1356,8 @@ func (L State) ErrorNoHalt(err string) {
 
 func (L State) GetErrorMessage(errorCode int) string {
 	errorMessage := func(defaultMsg string) string {
-		if err := L.GetErrorString(); err != nil {
-			return defaultMsg + ": " + *err
+		if err := L.GetErrorString(); err != "" {
+			return defaultMsg + ": " + err
 		}
 		return defaultMsg
 	}
@@ -1385,7 +1385,7 @@ func (L State) DumpStack() {
 		t := L.Type(i)
 		switch t {
 		case LUA_TSTRING:
-			fmt.Printf("(string) %v => %q\n", i, *L.GetString(i))
+			fmt.Printf("(string) %v => %q\n", i, L.GetString(i))
 		case LUA_TNUMBER:
 			fmt.Printf("(number) %v => %v\n", i, L.GetNumber(i))
 		case LUA_TBOOLEAN:
