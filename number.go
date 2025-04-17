@@ -10,7 +10,7 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-const LUA_NUMBER_MAX_SAFE_INTEGER int64 = (2 ^ 53) - 1
+const LuaNumberMaxSafeInteger int64 = (1 << 53) - 1
 
 func pushNumber(L State, n LUA_NUMBER) {
 	C.lua_pushnumber_wrap(L.c(), C.double(n))
