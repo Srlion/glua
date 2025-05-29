@@ -18,7 +18,7 @@ func pushNumber(L State, n LUA_NUMBER) {
 
 func pushInt[V constraints.Integer](L State, n V) {
 	// max(-n, n) is a quick way to get the absolute value of n, since golang doesn't have a built-in abs function for integers :D
-	if max(-n, n) <= V(LUA_NUMBER_MAX_SAFE_INTEGER) {
+	if max(-n, n) <= V(LuaNumberMaxSafeInteger) {
 		pushNumber(L, LUA_NUMBER(n))
 	} else {
 		if n < 0 {
