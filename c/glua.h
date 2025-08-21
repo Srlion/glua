@@ -11,6 +11,12 @@
 #include "glua_functions.h"
 #include "cross_loader.h"
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define DLL_EXPORT __declspec(dllexport)
+#else
+#define DLL_EXPORT __attribute__((visibility("default")))
+#endif
+
 #define format(fmt, ...)                                        \
     ({                                                          \
         size_t len = snprintf(NULL, 0, fmt, ##__VA_ARGS__) + 1; \
