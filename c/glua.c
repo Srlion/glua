@@ -174,6 +174,16 @@ GLUA_FUNCTIONS
 #undef X_ARG_4
 #undef X_ARG_5
 
+__attribute__((visibility("default"))) int gmod13_open(lua_State L)
+{
+    return go_gmod13_open(L);
+}
+
+__attribute__((visibility("default"))) int gmod13_close(lua_State L)
+{
+    return go_gmod13_close(L);
+}
+
 int lua_call_go(lua_State L)
 {
     int result = 0;

@@ -14,8 +14,8 @@ var GMOD13_CLOSE func(L State) int
 
 var IS_STATE_OPEN = atomic.Bool{}
 
-//export gmod13_open
-func gmod13_open(L State) C.int {
+//export go_gmod13_open
+func go_gmod13_open(L State) C.int {
 	err := LoadLuaShared()
 	if err != nil {
 		fmt.Printf("Error loading lua shared: %v\n", *err)
@@ -36,8 +36,8 @@ func gmod13_open(L State) C.int {
 	return 0
 }
 
-//export gmod13_close
-func gmod13_close(L State) C.int {
+//export go_gmod13_close
+func go_gmod13_close(L State) C.int {
 	var res C.int = 0
 
 	WaitGoTasks()
