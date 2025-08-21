@@ -10,29 +10,36 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-const LuaNumberMaxSafeInteger int64 = (1 << 53) - 1
+const LuaNumberMaxSafeInteger = (1 << 53) - 1
 
 func pushNumber(L State, n LUA_NUMBER) {
 	C.lua_pushnumber_wrap(L.c(), C.double(n))
 }
 
-func pushInt[V constraints.Integer](L State, n V) {
-	// max(-n, n) is a quick way to get the absolute value of n, since golang doesn't have a built-in abs function for integers :D
-	if max(-n, n) <= V(LuaNumberMaxSafeInteger) {
-		pushNumber(L, LUA_NUMBER(n))
-	} else {
-		if n < 0 {
-			L.PushString(strconv.FormatInt(int64(n), 10))
-		} else {
-			L.PushString(strconv.FormatUint(uint64(n), 10))
-		}
+func pushIntSigned[T constraints.Signed](L State, n T) {
+	const max = int64(LuaNumberMaxSafeInteger)
+	v := int64(n)
+	if v >= -max && v <= max {
+		pushNumber(L, LUA_NUMBER(v))
+		return
 	}
+	L.PushString(strconv.FormatInt(v, 10))
+}
+
+func pushIntUnsigned[T constraints.Unsigned](L State, n T) {
+	const max = uint64(LuaNumberMaxSafeInteger)
+	v := uint64(n)
+	if v <= max {
+		pushNumber(L, LUA_NUMBER(v))
+		return
+	}
+	L.PushString(strconv.FormatUint(v, 10))
 }
 
 func (L State) PushNumber(n any) {
 	switch v := n.(type) {
 	case int:
-		pushInt(L, v)
+		pushIntSigned(L, v)
 	case int8:
 		pushNumber(L, LUA_NUMBER(v))
 	case int16:
@@ -40,10 +47,10 @@ func (L State) PushNumber(n any) {
 	case int32:
 		pushNumber(L, LUA_NUMBER(v))
 	case int64:
-		pushInt(L, v)
+		pushIntSigned(L, v)
 
 	case uint:
-		pushInt(L, v)
+		pushIntUnsigned(L, v)
 	case uint8:
 		pushNumber(L, LUA_NUMBER(v))
 	case uint16:
@@ -51,7 +58,7 @@ func (L State) PushNumber(n any) {
 	case uint32:
 		pushNumber(L, LUA_NUMBER(v))
 	case uint64:
-		pushInt(L, v)
+		pushIntUnsigned(L, v)
 
 	case float32:
 		pushNumber(L, LUA_NUMBER(v))
